@@ -1,0 +1,40 @@
+import { VercelRequest, VercelResponse } from '@vercel/node';
+import { TaskOrchestrator } from '../src/services/orchestrator';
+import { loadConfig, validateConfig } from '../src/utils/config';
+
+let orchestrator: TaskOrchestrator;
+
+function initializeOrchestrator() {
+  if (!orchestrator) {
+    const config = loadConfig();
+    validateConfig(config);
+    orchestrator = new TaskOrchestrator(config);
+  }
+}
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'GET') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  try {
+    initializeOrchestrator();
+    const health = await orchestrator.healthCheck();
+    
+    const statusCode = health.status === 'healthy' ? 200 : 503;
+    
+    return res.status(statusCode).json({
+      ...health,
+      timestamp: new Date().toISOString(),
+      version: process.env.npm_package_version || '1.0.0'
+    });
+  } catch (error) {
+    console.error('Health check error:', error);
+    
+    return res.status(503).json({
+      status: 'error',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+}

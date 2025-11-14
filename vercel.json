@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "functions": {
+    "api/**/*.ts": {
+      "runtime": "@vercel/node@18.x"
+    }
+  },
+  "builds": [
+    {
+      "src": "api/**/*.ts",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/webhook",
+      "dest": "/api/webhook.ts"
+    },
+    {
+      "src": "/api/health",
+      "dest": "/api/health.ts"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
+}
