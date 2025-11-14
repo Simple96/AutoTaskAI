@@ -3,13 +3,16 @@ import { LLMAnalysisInput } from '../types/llm';
 import { AppConfig } from '../types/config';
 import { LLMService } from './llm';
 import { LinearService } from './linear';
+import { createLogger } from '../utils/logger';
 
 export class TaskOrchestrator {
   private llmService: LLMService;
   private linearService: LinearService;
   private config: AppConfig;
+  private logger = createLogger('TaskOrchestrator');
 
   constructor(config: AppConfig) {
+    this.logger.info('Initializing Task Orchestrator');
     this.config = config;
     
     this.llmService = new LLMService({
@@ -21,16 +24,30 @@ export class TaskOrchestrator {
     });
 
     this.linearService = new LinearService(config.linear);
+    
+    this.logger.info('Task Orchestrator initialized successfully');
   }
 
   async processGitHubEvent(payload: GitHubWebhookPayload): Promise<void> {
+    const requestId = this.generateRequestId();
+    
+    this.logger.info('Processing GitHub event', {
+      action: 'event_processing_start',
+      repository: payload.repository.full_name,
+      eventType: this.determineEventType(payload),
+      requestId
+    });
+    
     try {
-      console.log(`Processing GitHub event for ${payload.repository.full_name}`);
 
       // Determine event type
       const eventType = this.determineEventType(payload);
       if (!eventType) {
-        console.log('Unsupported event type, skipping');
+        this.logger.warn('Unsupported event type, skipping processing', {
+          action: 'event_skipped',
+          repository: payload.repository.full_name,
+          requestId
+        });
         return;
       }
 
@@ -52,20 +69,41 @@ export class TaskOrchestrator {
       };
 
       // Analyze with LLM
-      console.log('Analyzing changes with LLM...');
+      this.logger.info('Starting LLM analysis', {
+        action: 'llm_analysis_start',
+        repository: payload.repository.full_name,
+        eventType,
+        existingTasksCount: existingTasks.length,
+        requestId
+      });
+      
       const analysis = await this.llmService.analyzeGitHubChanges(analysisInput);
 
       if (!analysis.shouldCreateTasks) {
-        console.log('LLM determined no tasks should be created');
+        this.logger.info('LLM determined no tasks should be created', {
+          action: 'no_tasks_needed',
+          repository: payload.repository.full_name,
+          reason: 'llm_decision',
+          requestId
+        });
         return;
       }
 
       if (analysis.suggestions.length === 0) {
-        console.log('No task suggestions from LLM');
+        this.logger.warn('No task suggestions received from LLM', {
+          action: 'no_suggestions',
+          repository: payload.repository.full_name,
+          requestId
+        });
         return;
       }
 
-      console.log(`LLM suggested ${analysis.suggestions.length} task(s)`);
+      this.logger.info('LLM analysis completed with suggestions', {
+        action: 'llm_suggestions_received',
+        repository: payload.repository.full_name,
+        suggestionsCount: analysis.suggestions.length,
+        requestId
+      });
 
       // Process suggestions with Linear
       const results = await this.linearService.processLLMSuggestions(
@@ -121,20 +159,22 @@ export class TaskOrchestrator {
     analysis: any,
     results: any
   ): Promise<void> {
-    // Optional: Store analysis results for debugging/analytics
-    // Could be saved to a database, log service, or file
-    if (this.config.app.logLevel === 'debug') {
-      console.log('Analysis Details:', {
-        repository,
-        timestamp: new Date().toISOString(),
-        summary: analysis.summary,
-        suggestions: analysis.suggestions.length,
-        created: results.created.length,
-        updated: results.updated.length,
-        errors: results.errors.length,
-        tokensUsed: analysis.metadata.tokensUsed
-      });
-    }
+    // Log detailed analysis results
+    this.logger.info('Analysis completed', {
+      action: 'analysis_details',
+      repository,
+      summaryLength: analysis.summary.length,
+      suggestionsCount: analysis.suggestions.length,
+      createdCount: results.created.length,
+      updatedCount: results.updated.length,
+      errorCount: results.errors.length,
+      tokensUsed: analysis.metadata.tokensUsed,
+      model: analysis.metadata.model
+    });
+  }
+
+  private generateRequestId(): string {
+    return `orch_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
   }
 
   // Health check method

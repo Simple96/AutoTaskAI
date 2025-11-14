@@ -7,47 +7,120 @@ import {
   GitHubPullRequest,
   GitHubRepository
 } from '../types/github';
+import { createLogger } from '../utils/logger';
 
 export class GitHubWebhookService {
   private webhooks: any;
+  private logger = createLogger('GitHubWebhookService');
 
   constructor(
     secret: string,
     private onPush?: (payload: GitHubWebhookPayload) => Promise<void>,
     private onPullRequest?: (payload: GitHubWebhookPayload) => Promise<void>
   ) {
+    this.logger.info('Initializing GitHub webhook service');
+    
     this.webhooks = new Webhooks({
       secret,
     });
 
     this.setupEventHandlers();
+    this.logger.info('GitHub webhook service initialized successfully');
   }
 
   private setupEventHandlers(): void {
+    this.logger.debug('Setting up GitHub webhook event handlers');
+    
     // Handle push events (commits)
     this.webhooks.on('push', async ({ payload }: { payload: any }) => {
-      console.log(`Received push event for ${payload.repository.full_name}`);
+      const requestId = this.generateRequestId();
+      
+      this.logger.webhookReceived('push', payload.repository.full_name, requestId);
+      this.logger.debug('Processing push event', {
+        action: 'push_received',
+        repository: payload.repository.full_name,
+        commitsCount: payload.commits?.length || 0,
+        requestId
+      });
       
       if (this.onPush) {
-        const transformedPayload = this.transformPushPayload(payload);
-        await this.onPush(transformedPayload);
+        try {
+          const transformedPayload = this.transformPushPayload(payload);
+          await this.onPush(transformedPayload);
+          
+          this.logger.info('Push event processed successfully', {
+            action: 'push_processed',
+            repository: payload.repository.full_name,
+            requestId
+          });
+        } catch (error) {
+          this.logger.error('Failed to process push event', {
+            action: 'push_failed',
+            repository: payload.repository.full_name,
+            requestId
+          }, error as Error);
+        }
+      } else {
+        this.logger.warn('No push handler configured', {
+          action: 'push_ignored',
+          repository: payload.repository.full_name,
+          requestId
+        });
       }
     });
 
     // Handle pull request events
     this.webhooks.on('pull_request', async ({ payload }: { payload: any }) => {
-      console.log(`Received pull_request event for ${payload.repository.full_name}: ${payload.action}`);
+      const requestId = this.generateRequestId();
+      
+      this.logger.webhookReceived('pull_request', payload.repository.full_name, requestId);
+      this.logger.debug('Processing pull request event', {
+        action: 'pr_received',
+        repository: payload.repository.full_name,
+        prAction: payload.action,
+        prNumber: payload.pull_request?.number,
+        requestId
+      });
       
       if (this.onPullRequest && this.shouldProcessPRAction(payload.action)) {
-        const transformedPayload = this.transformPullRequestPayload(payload);
-        await this.onPullRequest(transformedPayload);
+        try {
+          const transformedPayload = this.transformPullRequestPayload(payload);
+          await this.onPullRequest(transformedPayload);
+          
+          this.logger.info('Pull request event processed successfully', {
+            action: 'pr_processed',
+            repository: payload.repository.full_name,
+            prAction: payload.action,
+            prNumber: payload.pull_request?.number,
+            requestId
+          });
+        } catch (error) {
+          this.logger.error('Failed to process pull request event', {
+            action: 'pr_failed',
+            repository: payload.repository.full_name,
+            prAction: payload.action,
+            requestId
+          }, error as Error);
+        }
+      } else {
+        this.logger.debug('Pull request event ignored', {
+          action: 'pr_ignored',
+          repository: payload.repository.full_name,
+          prAction: payload.action,
+          reason: this.onPullRequest ? 'action_not_processed' : 'no_handler',
+          requestId
+        });
       }
     });
 
     // Handle errors
     this.webhooks.onError((error: any) => {
-      console.error('GitHub webhook error:', error);
+      this.logger.error('GitHub webhook error occurred', {
+        action: 'webhook_error'
+      }, error);
     });
+    
+    this.logger.debug('GitHub webhook event handlers configured');
   }
 
   private transformPushPayload(payload: any): GitHubWebhookPayload {
@@ -137,7 +210,20 @@ export class GitHubWebhookService {
   private shouldProcessPRAction(action: string): boolean {
     // Process these PR actions
     const processedActions = ['opened', 'closed', 'reopened', 'synchronize', 'ready_for_review'];
-    return processedActions.includes(action);
+    const shouldProcess = processedActions.includes(action);
+    
+    this.logger.debug('Evaluating PR action for processing', {
+      action: 'pr_action_check',
+      prAction: action,
+      shouldProcess,
+      processedActions
+    });
+    
+    return shouldProcess;
+  }
+
+  private generateRequestId(): string {
+    return `req_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
   }
 
   getMiddleware() {

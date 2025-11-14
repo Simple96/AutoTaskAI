@@ -1,19 +1,42 @@
 import { LinearClient } from '@linear/sdk';
 import { LinearConfig, CreateLinearIssueInput, LinearIssue } from '../types/linear';
 import { LLMTaskSuggestion, LinearTaskSummary } from '../types/llm';
+import { createLogger } from '../utils/logger';
 
 export class LinearService {
   private client: LinearClient;
   private config: LinearConfig;
+  private logger = createLogger('LinearService');
 
   constructor(config: LinearConfig) {
+    this.logger.info('Initializing Linear service', {
+      action: 'service_init',
+      hasTeamId: !!config.teamId,
+      hasDefaultAssignee: !!config.defaultAssigneeId,
+      defaultPriority: config.defaultPriority
+    });
+    
     this.config = config;
     this.client = new LinearClient({
       apiKey: config.apiKey,
     });
+    
+    this.logger.info('Linear service initialized successfully');
   }
 
   async createTask(input: CreateLinearIssueInput): Promise<LinearIssue> {
+    const requestId = this.generateRequestId();
+    
+    this.logger.info('Creating Linear task', {
+      action: 'task_create_start',
+      title: input.title,
+      teamId: input.teamId || this.config.teamId,
+      priority: input.priority || this.config.defaultPriority || 3,
+      hasAssignee: !!(input.assigneeId || this.config.defaultAssigneeId),
+      labelCount: (input.labelIds || this.config.defaultLabelIds || []).length,
+      requestId
+    });
+    
     try {
       const issuePayload = {
         title: input.title,
@@ -25,20 +48,43 @@ export class LinearService {
         projectId: input.projectId,
       };
 
+      this.logger.debug('Sending create request to Linear API', {
+        action: 'linear_api_create',
+        payload: { ...issuePayload, description: issuePayload.description?.substring(0, 100) + '...' },
+        requestId
+      });
+
       const issuePayloadResult = await this.client.createIssue(issuePayload);
       
       if (!issuePayloadResult.success) {
+        this.logger.error('Linear API returned failure', {
+          action: 'linear_api_failed',
+          requestId
+        });
         throw new Error(`Failed to create Linear issue`);
       }
 
       const issue = await issuePayloadResult.issue;
       if (!issue) {
+        this.logger.error('No issue returned from Linear API', {
+          action: 'no_issue_returned',
+          requestId
+        });
         throw new Error('Failed to retrieve created issue');
       }
       
-      return await this.mapLinearIssue(issue);
+      const mappedIssue = await this.mapLinearIssue(issue);
+      
+      this.logger.linearTaskCreated(mappedIssue.id, mappedIssue.identifier, 'unknown', requestId);
+      
+      return mappedIssue;
     } catch (error) {
-      console.error('Error creating Linear task:', error);
+      this.logger.error('Failed to create Linear task', {
+        action: 'task_create_failed',
+        title: input.title,
+        requestId
+      }, error as Error);
+      
       throw new Error(`Failed to create Linear task: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -120,14 +166,38 @@ export class LinearService {
     suggestions: LLMTaskSuggestion[],
     repositoryName: string
   ): Promise<{ created: LinearIssue[]; updated: LinearIssue[]; errors: string[] }> {
+    const requestId = this.generateRequestId();
+    
+    this.logger.info('Processing LLM suggestions', {
+      action: 'suggestions_processing_start',
+      repository: repositoryName,
+      suggestionsCount: suggestions.length,
+      requestId
+    });
+    
     const created: LinearIssue[] = [];
     const updated: LinearIssue[] = [];
     const errors: string[] = [];
 
-    for (const suggestion of suggestions) {
+    for (const [index, suggestion] of suggestions.entries()) {
+      this.logger.debug('Processing suggestion', {
+        action: 'suggestion_processing',
+        suggestionIndex: index + 1,
+        suggestionAction: suggestion.action,
+        title: suggestion.task.title,
+        confidence: suggestion.confidence,
+        requestId
+      });
+      
       try {
         if (suggestion.confidence < 0.7) {
-          console.log(`Skipping low confidence suggestion: ${suggestion.task.title} (confidence: ${suggestion.confidence})`);
+          this.logger.debug('Skipping low confidence suggestion', {
+            action: 'suggestion_skipped',
+            title: suggestion.task.title,
+            confidence: suggestion.confidence,
+            threshold: 0.7,
+            requestId
+          });
           continue;
         }
 
@@ -141,20 +211,63 @@ export class LinearService {
         };
 
         if (suggestion.action === 'create') {
+          this.logger.debug('Creating task from suggestion', {
+            action: 'suggestion_create',
+            title: suggestion.task.title,
+            requestId
+          });
+          
           const issue = await this.createTask(taskInput);
           created.push(issue);
-          console.log(`Created Linear task: ${issue.identifier} - ${issue.title}`);
+          
+          this.logger.info('Task created from suggestion', {
+            action: 'suggestion_created',
+            taskId: issue.id,
+            taskIdentifier: issue.identifier,
+            title: issue.title,
+            requestId
+          });
+          
         } else if (suggestion.action === 'update' && suggestion.existingTaskId) {
+          this.logger.debug('Updating task from suggestion', {
+            action: 'suggestion_update',
+            existingTaskId: suggestion.existingTaskId,
+            title: suggestion.task.title,
+            requestId
+          });
+          
           const issue = await this.updateTask(suggestion.existingTaskId, taskInput);
           updated.push(issue);
-          console.log(`Updated Linear task: ${issue.identifier} - ${issue.title}`);
+          
+          this.logger.info('Task updated from suggestion', {
+            action: 'suggestion_updated',
+            taskId: issue.id,
+            taskIdentifier: issue.identifier,
+            title: issue.title,
+            requestId
+          });
         }
       } catch (error) {
         const errorMessage = `Failed to ${suggestion.action} task "${suggestion.task.title}": ${error instanceof Error ? error.message : 'Unknown error'}`;
         errors.push(errorMessage);
-        console.error(errorMessage);
+        
+        this.logger.error('Failed to process suggestion', {
+          action: 'suggestion_failed',
+          suggestionAction: suggestion.action,
+          title: suggestion.task.title,
+          requestId
+        }, error as Error);
       }
     }
+
+    this.logger.info('LLM suggestions processing completed', {
+      action: 'suggestions_processing_completed',
+      repository: repositoryName,
+      createdCount: created.length,
+      updatedCount: updated.length,
+      errorCount: errors.length,
+      requestId
+    });
 
     return { created, updated, errors };
   }
@@ -176,16 +289,43 @@ export class LinearService {
   }
 
   private async findUserByName(displayName: string): Promise<string | undefined> {
+    this.logger.debug('Finding user by name', {
+      action: 'user_lookup',
+      displayName
+    });
+    
     try {
       const users = await this.client.users({
         filter: { displayName: { containsIgnoreCase: displayName } }
       });
       
-      return users.nodes?.[0]?.id;
+      const userId = users.nodes?.[0]?.id;
+      
+      if (userId) {
+        this.logger.debug('User found', {
+          action: 'user_found',
+          displayName,
+          userId
+        });
+      } else {
+        this.logger.debug('User not found', {
+          action: 'user_not_found',
+          displayName
+        });
+      }
+      
+      return userId;
     } catch (error) {
-      console.warn(`Could not find user with name: ${displayName}`);
+      this.logger.warn('Failed to find user', {
+        action: 'user_lookup_failed',
+        displayName
+      }, error as Error);
       return undefined;
     }
+  }
+
+  private generateRequestId(): string {
+    return `linear_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
   }
 
   private async findOrCreateLabels(labelNames: string[]): Promise<string[]> {
