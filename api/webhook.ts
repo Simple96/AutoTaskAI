@@ -39,6 +39,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     action: 'request_received',
     method: req.method,
     userAgent: req.headers['user-agent'],
+    hasSignature: !!req.headers['x-hub-signature-256'],
+    githubEvent: req.headers['x-github-event'],
     requestId
   });
   
@@ -54,6 +56,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     return;
   }
 
+  // Check for required headers
+  if (!req.headers['x-github-event']) {
+    logger.warn('Missing GitHub event header', {
+      service: 'WebhookAPI',
+      action: 'missing_header',
+      requestId
+    });
+    res.status(400).json({ error: 'Missing X-GitHub-Event header' });
+    return;
+  }
+
+  if (!req.headers['x-hub-signature-256']) {
+    logger.warn('Missing GitHub signature header', {
+      service: 'WebhookAPI',
+      action: 'missing_signature',
+      requestId
+    });
+    res.status(401).json({ error: 'Missing X-Hub-Signature-256 header' });
+    return;
+  }
+
   try {
     // Initialize services if needed
     initializeServices();
@@ -61,6 +84,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     logger.debug('Processing webhook request', {
       service: 'WebhookAPI',
       action: 'processing_webhook',
+      githubEvent: req.headers['x-github-event'],
       requestId
     });
 
@@ -72,6 +96,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       logger.info('Webhook processed successfully', {
         service: 'WebhookAPI',
         action: 'webhook_success',
+        githubEvent: req.headers['x-github-event'],
         requestId
       });
       res.status(200).json({ success: true });
@@ -80,14 +105,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     logger.error('Webhook handler error', {
       service: 'WebhookAPI',
       action: 'webhook_error',
+      githubEvent: req.headers['x-github-event'],
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
       requestId
     }, error as Error);
     
     if (!res.headersSent) {
-      res.status(500).json({ 
-        error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error'
-      });
+      // Check if it's a signature verification error
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      if (errorMessage.includes('signature') || errorMessage.includes('unauthorized')) {
+        res.status(401).json({ 
+          error: 'Webhook signature verification failed',
+          message: 'Please check your GitHub webhook secret configuration'
+        });
+      } else {
+        res.status(500).json({ 
+          error: 'Internal server error',
+          message: errorMessage
+        });
+      }
     }
   }
 }
