@@ -102,6 +102,44 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     // Handle the webhook using GitHub webhook service
     await webhookService.handleRequest(req as any, res as any);
     
+    // ADDITIONAL: Direct event processing to bypass @octokit/webhooks event system
+    console.log(`🔄 DIRECT PROCESSING - Manually processing GitHub event`);
+    
+    try {
+      const eventType = req.headers['x-github-event'] as string;
+      console.log(`🎯 PROCESSING EVENT - ${eventType} for direct handling`);
+      
+      if (eventType === 'push' || eventType === 'pull_request') {
+        // Get the raw body
+        let body = '';
+        if (typeof req.body === 'string') {
+          body = req.body;
+        } else if (typeof req.body === 'object') {
+          body = JSON.stringify(req.body);
+        }
+        
+        const payload = typeof req.body === 'object' ? req.body : JSON.parse(body);
+        console.log(`📦 PARSED PAYLOAD - Repository: ${payload.repository?.full_name}, Event: ${eventType}`);
+        
+        // Directly call orchestrator
+        console.log(`🚀 CALLING ORCHESTRATOR DIRECTLY`);
+        await orchestrator.processGitHubEvent({
+          repository: payload.repository,
+          commits: payload.commits || [],
+          pull_request: payload.pull_request,
+          sender: payload.sender,
+          action: payload.action
+        });
+        
+        console.log(`✅ DIRECT PROCESSING SUCCESS - Event processed by orchestrator`);
+      } else {
+        console.log(`⚠️ UNSUPPORTED EVENT - ${eventType} not supported for direct processing`);
+      }
+    } catch (directError) {
+      console.error(`🔴 DIRECT PROCESSING ERROR - ${directError instanceof Error ? directError.message : 'Unknown error'}`);
+      console.error(`🔴 Direct Error Stack: ${directError instanceof Error && directError.stack ? directError.stack : 'No stack'}`);
+    }
+    
     // If we get here, the webhook was processed successfully
     if (!res.headersSent) {
       console.log(`✅ WEBHOOK SUCCESS - ${req.headers['x-github-event']} processed successfully`);
