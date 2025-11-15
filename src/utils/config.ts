@@ -41,7 +41,7 @@ export function loadConfig(): AppConfig {
     },
     ai: {
       openaiApiKey: process.env.OPENAI_API_KEY!,
-      model: process.env.OPENAI_MODEL || 'gpt-4-turbo-preview'
+      model: process.env.OPENAI_MODEL || 'gpt-4o-mini'
     },
     app: {
       environment: (process.env.NODE_ENV as 'development' | 'production') || 'development',

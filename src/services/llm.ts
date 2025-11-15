@@ -40,7 +40,7 @@ export class LLMService {
     
     this.logger.debug('Sending request to LLM', {
       action: 'llm_request',
-      model: this.config.model || 'gpt-4-turbo-preview',
+      model: this.config.model || 'gpt-4o-mini',
       promptLength,
       maxTokens: this.config.maxTokens || 2000,
       temperature: this.config.temperature || 0.3,

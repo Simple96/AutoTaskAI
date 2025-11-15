@@ -28,7 +28,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
       openai: {
         apiKey: !!process.env.OPENAI_API_KEY,
-        model: process.env.OPENAI_MODEL || 'gpt-4-turbo-preview',
+        model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
         apiKeyPrefix: process.env.OPENAI_API_KEY ? process.env.OPENAI_API_KEY.substring(0, 8) + '...' : null
       },
       app: {
