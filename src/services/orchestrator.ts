@@ -32,22 +32,20 @@ export class TaskOrchestrator {
   async processGitHubEvent(payload: GitHubWebhookPayload): Promise<void> {
     const requestId = this.generateRequestId();
     
-    console.log(`🎯 ORCHESTRATOR START - Processing GitHub event for ${payload.repository.full_name}`);
-    
     this.logger.info('Processing GitHub event', {
       action: 'event_processing_start',
       repository: payload.repository.full_name,
       eventType: this.determineEventType(payload),
+      commitsCount: payload.commits?.length || 0,
+      hasPullRequest: !!payload.pull_request,
       requestId
     });
     
     try {
       // Determine event type
       const eventType = this.determineEventType(payload);
-      console.log(`🔍 EVENT TYPE DETERMINED - ${eventType || 'null'}`);
       
       if (!eventType) {
-        console.log(`❌ UNSUPPORTED EVENT TYPE - Skipping processing`);
         this.logger.warn('Unsupported event type, skipping processing', {
           action: 'event_skipped',
           repository: payload.repository.full_name,
@@ -57,17 +55,23 @@ export class TaskOrchestrator {
       }
 
       // Get existing tasks for context
-      console.log(`🔍 FETCHING EXISTING TASKS - Checking Linear for existing tasks`);
-      
       let existingTasks: any[] = [];
       try {
         existingTasks = await this.linearService.getTasksByRepository(
           payload.repository.full_name
         );
-        console.log(`✅ EXISTING TASKS FETCHED - Found ${existingTasks.length} existing tasks`);
+        this.logger.debug('Existing tasks fetched', {
+          action: 'existing_tasks_fetched',
+          repository: payload.repository.full_name,
+          taskCount: existingTasks.length,
+          requestId
+        });
       } catch (error) {
-        console.error(`⚠️ FAILED TO FETCH EXISTING TASKS - ${error instanceof Error ? error.message : 'Unknown error'}`);
-        console.log(`🔄 CONTINUING WITHOUT EXISTING TASKS CONTEXT`);
+        this.logger.warn('Failed to fetch existing tasks, continuing without context', {
+          action: 'existing_tasks_failed',
+          repository: payload.repository.full_name,
+          requestId
+        }, error as Error);
         // Continue processing even if we can't fetch existing tasks
         existingTasks = [];
       }
@@ -85,8 +89,6 @@ export class TaskOrchestrator {
       };
 
       // Analyze with LLM
-      console.log(`🤖 STARTING LLM ANALYSIS - Sending data to GPT-4`);
-      
       this.logger.info('Starting LLM analysis', {
         action: 'llm_analysis_start',
         repository: payload.repository.full_name,
@@ -96,22 +98,19 @@ export class TaskOrchestrator {
       });
       
       const analysis = await this.llmService.analyzeGitHubChanges(analysisInput);
-      
-      console.log(`🧠 LLM ANALYSIS COMPLETED - Should create tasks: ${analysis.shouldCreateTasks}, Suggestions: ${analysis.suggestions.length}`);
 
       if (!analysis.shouldCreateTasks) {
-        console.log(`🚫 NO TASKS NEEDED - LLM determined no tasks should be created`);
         this.logger.info('LLM determined no tasks should be created', {
           action: 'no_tasks_needed',
           repository: payload.repository.full_name,
           reason: 'llm_decision',
+          summary: analysis.summary,
           requestId
         });
         return;
       }
 
       if (analysis.suggestions.length === 0) {
-        console.log(`❌ NO SUGGESTIONS - LLM returned zero task suggestions`);
         this.logger.warn('No task suggestions received from LLM', {
           action: 'no_suggestions',
           repository: payload.repository.full_name,
@@ -128,44 +127,34 @@ export class TaskOrchestrator {
       });
 
       // Process suggestions with Linear
-      console.log(`📋 PROCESSING SUGGESTIONS - Creating/updating ${analysis.suggestions.length} Linear tasks`);
+      this.logger.info('Processing LLM suggestions with Linear', {
+        action: 'suggestions_processing_start',
+        repository: payload.repository.full_name,
+        suggestionsCount: analysis.suggestions.length,
+        requestId
+      });
       
       const results = await this.linearService.processLLMSuggestions(
         analysis.suggestions,
         payload.repository.full_name
       );
-      
-      console.log(`✅ TASK PROCESSING COMPLETED - Created: ${results.created.length}, Updated: ${results.updated.length}, Errors: ${results.errors.length}`);
 
       // Log results
-      if (results.created.length > 0) {
-        console.log(`Created ${results.created.length} Linear task(s):`);
-        results.created.forEach(task => {
-          console.log(`  - ${task.identifier}: ${task.title}`);
-        });
-      }
-
-      if (results.updated.length > 0) {
-        console.log(`Updated ${results.updated.length} Linear task(s):`);
-        results.updated.forEach(task => {
-          console.log(`  - ${task.identifier}: ${task.title}`);
-        });
-      }
-
-      if (results.errors.length > 0) {
-        console.log(`Encountered ${results.errors.length} error(s):`);
-        results.errors.forEach(error => {
-          console.log(`  - ${error}`);
-        });
-      }
+      this.logger.info('Task processing completed', {
+        action: 'task_processing_completed',
+        repository: payload.repository.full_name,
+        createdCount: results.created.length,
+        updatedCount: results.updated.length,
+        errorCount: results.errors.length,
+        createdTasks: results.created.map(task => ({ id: task.identifier, title: task.title })),
+        errors: results.errors,
+        requestId
+      });
 
       // Store analysis for debugging/analytics (optional)
       await this.logAnalysis(payload.repository.full_name, analysis, results);
 
     } catch (error) {
-      console.error(`🔴 ORCHESTRATOR ERROR - Failed to process GitHub event: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      console.error(`🔴 Orchestrator Stack: ${error instanceof Error && error.stack ? error.stack : 'No stack'}`);
-      
       this.logger.error('Error processing GitHub event', {
         action: 'orchestrator_error',
         repository: payload.repository.full_name,

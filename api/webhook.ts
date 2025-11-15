@@ -34,10 +34,6 @@ function initializeServices() {
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   const requestId = `webhook_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
   
-  // Add simple console logs that are definitely visible in Vercel
-  console.log(`🚀 WEBHOOK START - ${requestId}`);
-  console.log(`📨 Method: ${req.method}, Event: ${req.headers['x-github-event']}, HasSignature: ${!!req.headers['x-hub-signature-256']}`);
-  
   logger.info('Webhook request received', {
     service: 'WebhookAPI',
     action: 'request_received',
@@ -50,7 +46,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   
   // Only accept POST requests
   if (req.method !== 'POST') {
-    console.log(`❌ WEBHOOK ERROR - Wrong method: ${req.method}`);
     logger.warn('Invalid method for webhook', {
       service: 'WebhookAPI',
       action: 'method_not_allowed',
@@ -63,7 +58,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
 
   // Check for required headers
   if (!req.headers['x-github-event']) {
-    console.log(`❌ WEBHOOK ERROR - Missing GitHub event header`);
     logger.warn('Missing GitHub event header', {
       service: 'WebhookAPI',
       action: 'missing_header',
@@ -74,7 +68,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   }
 
   if (!req.headers['x-hub-signature-256']) {
-    console.log(`❌ WEBHOOK ERROR - Missing GitHub signature header`);
     logger.warn('Missing GitHub signature header', {
       service: 'WebhookAPI',
       action: 'missing_signature',
@@ -85,12 +78,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   }
 
   try {
-    console.log(`🔧 WEBHOOK INIT - Starting service initialization`);
-    
     // Initialize services if needed
     initializeServices();
-    
-    console.log(`✅ WEBHOOK SERVICES READY - Processing ${req.headers['x-github-event']} event`);
 
     logger.debug('Processing webhook request', {
       service: 'WebhookAPI',
@@ -103,11 +92,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     await webhookService.handleRequest(req as any, res as any);
     
     // ADDITIONAL: Direct event processing to bypass @octokit/webhooks event system
-    console.log(`🔄 DIRECT PROCESSING - Manually processing GitHub event`);
-    
     try {
       const eventType = req.headers['x-github-event'] as string;
-      console.log(`🎯 PROCESSING EVENT - ${eventType} for direct handling`);
       
       if (eventType === 'push' || eventType === 'pull_request') {
         // Get the raw body
@@ -119,10 +105,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
         }
         
         const payload = typeof req.body === 'object' ? req.body : JSON.parse(body);
-        console.log(`📦 PARSED PAYLOAD - Repository: ${payload.repository?.full_name}, Event: ${eventType}`);
+        
+        logger.debug('Direct processing GitHub event', {
+          service: 'WebhookAPI',
+          action: 'direct_processing',
+          repository: payload.repository?.full_name,
+          eventType,
+          requestId
+        });
         
         // Directly call orchestrator
-        console.log(`🚀 CALLING ORCHESTRATOR DIRECTLY`);
         await orchestrator.processGitHubEvent({
           repository: payload.repository,
           commits: payload.commits || [],
@@ -130,19 +122,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
           sender: payload.sender,
           action: payload.action
         });
-        
-        console.log(`✅ DIRECT PROCESSING SUCCESS - Event processed by orchestrator`);
       } else {
-        console.log(`⚠️ UNSUPPORTED EVENT - ${eventType} not supported for direct processing`);
+        logger.debug('Unsupported event type for direct processing', {
+          service: 'WebhookAPI',
+          action: 'unsupported_event',
+          eventType,
+          requestId
+        });
       }
     } catch (directError) {
-      console.error(`🔴 DIRECT PROCESSING ERROR - ${directError instanceof Error ? directError.message : 'Unknown error'}`);
-      console.error(`🔴 Direct Error Stack: ${directError instanceof Error && directError.stack ? directError.stack : 'No stack'}`);
+      logger.error('Direct processing error', {
+        service: 'WebhookAPI',
+        action: 'direct_processing_error',
+        requestId
+      }, directError as Error);
     }
     
     // If we get here, the webhook was processed successfully
     if (!res.headersSent) {
-      console.log(`✅ WEBHOOK SUCCESS - ${req.headers['x-github-event']} processed successfully`);
       logger.info('Webhook processed successfully', {
         service: 'WebhookAPI',
         action: 'webhook_success',
@@ -152,12 +149,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       res.status(200).json({ success: true });
     }
   } catch (error) {
-    console.error(`🔴 WEBHOOK ERROR - ${error instanceof Error ? error.message : 'Unknown error'}`);
-    console.error(`🔴 Request ID: ${requestId}`);
-    if (error instanceof Error && error.stack) {
-      console.error(`🔴 Stack: ${error.stack}`);
-    }
-    
     logger.error('Webhook handler error', {
       service: 'WebhookAPI',
       action: 'webhook_error',

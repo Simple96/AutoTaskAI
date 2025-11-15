@@ -14,8 +14,6 @@ function initializeOrchestrator() {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  console.log(`🏥 HEALTH CHECK START`);
-  
   logger.info('Health check requested', {
     service: 'HealthAPI',
     action: 'health_check_request',
@@ -32,14 +30,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    console.log(`🔧 HEALTH CHECK - Initializing orchestrator`);
     initializeOrchestrator();
-    
-    console.log(`⚕️ HEALTH CHECK - Running health check`);
     const health = await orchestrator.healthCheck();
-    
-    console.log(`✅ HEALTH CHECK RESULT - Status: ${health.status}`);
-    console.log(`🔍 SERVICES STATUS - LLM: ${health.services.llm}, Linear: ${health.services.linear}`);
     
     const statusCode = health.status === 'healthy' ? 200 : 503;
     
@@ -47,7 +39,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       service: 'HealthAPI',
       action: 'health_check_completed',
       status: health.status,
-      statusCode
+      statusCode,
+      services: health.services
     });
     
     return res.status(statusCode).json({
@@ -56,11 +49,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       version: process.env.npm_package_version || '1.0.0'
     });
   } catch (error) {
-    console.error(`🔴 HEALTH CHECK FAILED - ${error instanceof Error ? error.message : 'Unknown error'}`);
-    if (error instanceof Error && error.stack) {
-      console.error(`🔴 Stack: ${error.stack}`);
-    }
-    
     logger.error('Health check failed', {
       service: 'HealthAPI',
       action: 'health_check_failed'

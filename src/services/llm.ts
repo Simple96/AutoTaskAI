@@ -93,39 +93,58 @@ export class LLMService {
         throw new Error('No response from LLM');
       }
 
-      console.log(`📄 LLM RAW RESPONSE - Length: ${response.length}`);
-      console.log(`📄 LLM RESPONSE PREVIEW - ${response.substring(0, 200)}...`);
-
       this.logger.debug('Parsing LLM response', {
         action: 'response_parsing',
         responseLength: response.length,
         tokensUsed: completion.usage?.total_tokens,
+        responsePreview: response.substring(0, 100) + '...',
         requestId
       });
 
       let parsed: LLMAnalysisResult;
       try {
         parsed = JSON.parse(response) as LLMAnalysisResult;
-        console.log(`✅ JSON PARSING SUCCESS - shouldCreateTasks: ${parsed.shouldCreateTasks}, suggestions: ${parsed.suggestions?.length || 0}`);
+        
+        this.logger.debug('JSON parsing successful', {
+          action: 'json_parsing_success',
+          shouldCreateTasks: parsed.shouldCreateTasks,
+          suggestionsCount: parsed.suggestions?.length || 0,
+          hasSummary: !!parsed.summary,
+          requestId
+        });
       } catch (parseError) {
-        console.error(`🔴 JSON PARSING ERROR - ${parseError instanceof Error ? parseError.message : 'Unknown parse error'}`);
-        console.error(`🔴 Raw response that failed to parse: ${response}`);
+        this.logger.error('Failed to parse LLM JSON response', {
+          action: 'json_parsing_error',
+          responseLength: response.length,
+          responsePreview: response.substring(0, 300),
+          requestId
+        }, parseError as Error);
+        
         throw new Error(`Failed to parse LLM JSON response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
       }
       
       // Ensure required fields exist with defaults
       if (!parsed.suggestions) {
-        console.log(`⚠️ MISSING SUGGESTIONS - Adding empty array`);
+        this.logger.warn('Missing suggestions field, adding empty array', {
+          action: 'missing_suggestions_field',
+          requestId
+        });
         parsed.suggestions = [];
       }
       
       if (typeof parsed.shouldCreateTasks === 'undefined') {
-        console.log(`⚠️ MISSING shouldCreateTasks - Defaulting to false`);
+        this.logger.warn('Missing shouldCreateTasks field, defaulting to false', {
+          action: 'missing_shouldCreateTasks_field',
+          requestId
+        });
         parsed.shouldCreateTasks = false;
       }
 
       if (!parsed.summary) {
-        console.log(`⚠️ MISSING SUMMARY - Adding default`);
+        this.logger.warn('Missing summary field, adding default', {
+          action: 'missing_summary_field',
+          requestId
+        });
         parsed.summary = 'Analysis completed';
       }
 
@@ -137,8 +156,6 @@ export class LLMService {
         provider: this.config.provider,
         tokensUsed: completion.usage?.total_tokens
       };
-
-      console.log(`📊 FINAL PARSED RESULT - shouldCreateTasks: ${parsed.shouldCreateTasks}, suggestions: ${parsed.suggestions.length}, summary length: ${parsed.summary.length}`);
 
       this.logger.llmAnalysisCompleted(
         input.repository.full_name, 
