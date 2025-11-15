@@ -31,6 +31,8 @@ export class TaskOrchestrator {
   async processGitHubEvent(payload: GitHubWebhookPayload): Promise<void> {
     const requestId = this.generateRequestId();
     
+    console.log(`🎯 ORCHESTRATOR START - Processing GitHub event for ${payload.repository.full_name}`);
+    
     this.logger.info('Processing GitHub event', {
       action: 'event_processing_start',
       repository: payload.repository.full_name,
@@ -39,10 +41,12 @@ export class TaskOrchestrator {
     });
     
     try {
-
       // Determine event type
       const eventType = this.determineEventType(payload);
+      console.log(`🔍 EVENT TYPE DETERMINED - ${eventType || 'null'}`);
+      
       if (!eventType) {
+        console.log(`❌ UNSUPPORTED EVENT TYPE - Skipping processing`);
         this.logger.warn('Unsupported event type, skipping processing', {
           action: 'event_skipped',
           repository: payload.repository.full_name,
@@ -52,9 +56,20 @@ export class TaskOrchestrator {
       }
 
       // Get existing tasks for context
-      const existingTasks = await this.linearService.getTasksByRepository(
-        payload.repository.full_name
-      );
+      console.log(`🔍 FETCHING EXISTING TASKS - Checking Linear for existing tasks`);
+      
+      let existingTasks: any[] = [];
+      try {
+        existingTasks = await this.linearService.getTasksByRepository(
+          payload.repository.full_name
+        );
+        console.log(`✅ EXISTING TASKS FETCHED - Found ${existingTasks.length} existing tasks`);
+      } catch (error) {
+        console.error(`⚠️ FAILED TO FETCH EXISTING TASKS - ${error instanceof Error ? error.message : 'Unknown error'}`);
+        console.log(`🔄 CONTINUING WITHOUT EXISTING TASKS CONTEXT`);
+        // Continue processing even if we can't fetch existing tasks
+        existingTasks = [];
+      }
 
       // Prepare LLM analysis input
       const analysisInput: LLMAnalysisInput = {
@@ -69,6 +84,8 @@ export class TaskOrchestrator {
       };
 
       // Analyze with LLM
+      console.log(`🤖 STARTING LLM ANALYSIS - Sending data to GPT-4`);
+      
       this.logger.info('Starting LLM analysis', {
         action: 'llm_analysis_start',
         repository: payload.repository.full_name,
@@ -78,8 +95,11 @@ export class TaskOrchestrator {
       });
       
       const analysis = await this.llmService.analyzeGitHubChanges(analysisInput);
+      
+      console.log(`🧠 LLM ANALYSIS COMPLETED - Should create tasks: ${analysis.shouldCreateTasks}, Suggestions: ${analysis.suggestions.length}`);
 
       if (!analysis.shouldCreateTasks) {
+        console.log(`🚫 NO TASKS NEEDED - LLM determined no tasks should be created`);
         this.logger.info('LLM determined no tasks should be created', {
           action: 'no_tasks_needed',
           repository: payload.repository.full_name,
@@ -90,6 +110,7 @@ export class TaskOrchestrator {
       }
 
       if (analysis.suggestions.length === 0) {
+        console.log(`❌ NO SUGGESTIONS - LLM returned zero task suggestions`);
         this.logger.warn('No task suggestions received from LLM', {
           action: 'no_suggestions',
           repository: payload.repository.full_name,
@@ -106,10 +127,14 @@ export class TaskOrchestrator {
       });
 
       // Process suggestions with Linear
+      console.log(`📋 PROCESSING SUGGESTIONS - Creating/updating ${analysis.suggestions.length} Linear tasks`);
+      
       const results = await this.linearService.processLLMSuggestions(
         analysis.suggestions,
         payload.repository.full_name
       );
+      
+      console.log(`✅ TASK PROCESSING COMPLETED - Created: ${results.created.length}, Updated: ${results.updated.length}, Errors: ${results.errors.length}`);
 
       // Log results
       if (results.created.length > 0) {
@@ -137,7 +162,15 @@ export class TaskOrchestrator {
       await this.logAnalysis(payload.repository.full_name, analysis, results);
 
     } catch (error) {
-      console.error('Error processing GitHub event:', error);
+      console.error(`🔴 ORCHESTRATOR ERROR - Failed to process GitHub event: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error(`🔴 Orchestrator Stack: ${error instanceof Error && error.stack ? error.stack : 'No stack'}`);
+      
+      this.logger.error('Error processing GitHub event', {
+        action: 'orchestrator_error',
+        repository: payload.repository.full_name,
+        requestId
+      }, error as Error);
+      
       throw error;
     }
   }

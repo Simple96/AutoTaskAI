@@ -35,6 +35,9 @@ export class GitHubWebhookService {
     this.webhooks.on('push', async ({ payload }: { payload: any }) => {
       const requestId = this.generateRequestId();
       
+      console.log(`🔵 GITHUB PUSH EVENT RECEIVED - ${payload.repository.full_name}`);
+      console.log(`📊 Push details - Commits: ${payload.commits?.length || 0}, Ref: ${payload.ref || 'unknown'}`);
+      
       this.logger.webhookReceived('push', payload.repository.full_name, requestId);
       this.logger.debug('Processing push event', {
         action: 'push_received',
@@ -45,8 +48,14 @@ export class GitHubWebhookService {
       
       if (this.onPush) {
         try {
+          console.log(`🔄 CALLING PUSH HANDLER - Starting orchestrator processing`);
+          
           const transformedPayload = this.transformPushPayload(payload);
+          console.log(`📦 TRANSFORMED PAYLOAD - Repository: ${transformedPayload.repository.full_name}, Commits: ${transformedPayload.commits?.length || 0}`);
+          
           await this.onPush(transformedPayload);
+          
+          console.log(`✅ PUSH HANDLER COMPLETED - Event processed successfully`);
           
           this.logger.info('Push event processed successfully', {
             action: 'push_processed',
@@ -54,6 +63,9 @@ export class GitHubWebhookService {
             requestId
           });
         } catch (error) {
+          console.error(`🔴 PUSH HANDLER ERROR - ${error instanceof Error ? error.message : 'Unknown error'}`);
+          console.error(`🔴 Push Handler Stack: ${error instanceof Error && error.stack ? error.stack : 'No stack'}`);
+          
           this.logger.error('Failed to process push event', {
             action: 'push_failed',
             repository: payload.repository.full_name,
@@ -61,6 +73,7 @@ export class GitHubWebhookService {
           }, error as Error);
         }
       } else {
+        console.log(`⚠️ NO PUSH HANDLER - onPush callback not configured`);
         this.logger.warn('No push handler configured', {
           action: 'push_ignored',
           repository: payload.repository.full_name,
