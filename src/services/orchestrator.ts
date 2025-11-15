@@ -17,7 +17,7 @@ export class TaskOrchestrator {
     
     this.llmService = new LLMService({
       provider: 'openai',
-      model: config.ai.model || 'gpt-4-turbo-preview',
+      model: config.ai.model || 'gpt-4o-mini',
       apiKey: config.ai.openaiApiKey!,
       maxTokens: 2000,
       temperature: 0.3

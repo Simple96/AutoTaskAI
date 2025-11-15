@@ -49,7 +49,7 @@ export class LLMService {
     
     try {
       const completion = await this.openai.chat.completions.create({
-        model: this.config.model || 'gpt-4-turbo-preview',
+        model: this.config.model || 'gpt-4o-mini',
         messages: [
           {
             role: 'system',
@@ -87,7 +87,7 @@ export class LLMService {
       parsed.metadata = {
         ...parsed.metadata,
         analysisDate: new Date().toISOString(),
-        model: this.config.model || 'gpt-4-turbo-preview',
+        model: this.config.model || 'gpt-4o-mini',
         tokensUsed: completion.usage?.total_tokens
       };
 
