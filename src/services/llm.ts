@@ -192,7 +192,31 @@ Priority levels:
 3 = Medium (standard features, minor improvements)
 4 = Low (nice-to-have, documentation, cleanup)
 
-Always respond with valid JSON matching the LLMAnalysisResult interface.`;
+CRITICAL: You MUST respond with valid JSON in EXACTLY this format:
+
+{
+  "shouldCreateTasks": boolean,
+  "summary": "Brief summary of the changes analyzed",
+  "suggestions": [
+    {
+      "action": "create" or "update",
+      "task": {
+        "title": "Clear task title",
+        "description": "Detailed description",
+        "priority": 1 | 2 | 3 | 4,
+        "labels": ["bug", "feature", "docs", etc.],
+        "assignee": "developer name or null",
+        "estimateHours": number or null
+      },
+      "existingTaskId": "optional for updates",
+      "reasoning": "Why this task should be created",
+      "confidence": 0.8
+    }
+  ],
+  "metadata": {}
+}
+
+Do NOT use "tasks" field. Use "suggestions" field as shown above.`;
   }
 
   private buildAnalysisPrompt(input: LLMAnalysisInput): string {
