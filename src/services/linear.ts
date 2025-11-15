@@ -360,10 +360,33 @@ export class LinearService {
               const newLabel = await createResult.issueLabel;
               if (newLabel) {
                 labelIds.push(newLabel.id);
+                this.logger.debug('Created new label', {
+                  action: 'label_created',
+                  labelName,
+                  labelId: newLabel.id
+                });
               }
             }
           } catch (createError) {
-            console.warn(`Could not create label: ${labelName}`, createError);
+            // Check if it's a duplicate label error
+            const errorMessage = createError instanceof Error ? createError.message : '';
+            if (errorMessage.includes('duplicate') || errorMessage.includes('already exists')) {
+              this.logger.debug('Label already exists, skipping creation', {
+                action: 'label_already_exists',
+                labelName
+              });
+              // Try to find the existing label by name
+              const existingLabel = Array.from(existingLabelMap.entries())
+                .find(([name]) => name.toLowerCase().includes(labelName.toLowerCase()));
+              if (existingLabel) {
+                labelIds.push(existingLabel[1]);
+              }
+            } else {
+              this.logger.warn('Failed to create label', {
+                action: 'label_creation_failed',
+                labelName
+              }, createError as Error);
+            }
           }
         }
       }
