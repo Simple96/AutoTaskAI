@@ -42,14 +42,16 @@ export interface LLMAnalysisResult {
   metadata: {
     analysisDate: string;
     model: string;
+    provider?: string;
     tokensUsed?: number;
   };
 }
 
 export interface LLMConfig {
-  provider: 'openai' | 'anthropic';
+  provider: 'openai' | 'openrouter';
   model: string;
   apiKey: string;
+  baseUrl?: string;
   maxTokens?: number;
   temperature?: number;
 }

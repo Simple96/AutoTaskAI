@@ -43,13 +43,15 @@ In your Vercel dashboard, add:
 GITHUB_WEBHOOK_SECRET=your_webhook_secret_here
 LINEAR_API_KEY=lin_api_your_linear_key_here  
 LINEAR_TEAM_ID=your_team_uuid_here
-OPENAI_API_KEY=sk-your_openai_key_here
+AI_PROVIDER=openrouter
+AI_API_KEY=your_openrouter_api_key_here
+AI_MODEL=openai/gpt-4o-mini
 ```
 
 **Get your API keys:**
 - 🔑 [GitHub Webhook Secret](https://generate-secret.vercel.app/32) (generate random string)
 - 🔑 [Linear API Key](https://linear.app/settings/api) (Personal API keys)
-- 🔑 [OpenAI API Key](https://platform.openai.com/api-keys) (Create new key)
+- 🔑 [OpenRouter API Key](https://openrouter.ai/keys) (Cheaper, more models)
 
 ### 3. Setup GitHub Webhook
 1. Go to your repo → Settings → Webhooks → Add webhook
@@ -187,6 +189,6 @@ ISC License - see [LICENSE](LICENSE) file
 
 **Linear connection fails?** Use `/api/test-linear` to get your correct team UUID
 
-**AI analysis failing?** Verify your `OPENAI_API_KEY` is valid
+**AI analysis failing?** Verify your `AI_API_KEY` is valid and model exists
 
 **Debug mode:** Set `LOG_LEVEL=debug` for detailed logs

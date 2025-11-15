@@ -11,15 +11,34 @@ export class LLMService {
     this.logger.info('Initializing LLM service', {
       action: 'service_init',
       provider: config.provider,
-      model: config.model
+      model: config.model,
+      baseUrl: config.baseUrl || 'default'
     });
     
     this.config = config;
-    this.openai = new OpenAI({
-      apiKey: config.apiKey,
-    });
     
-    this.logger.info('LLM service initialized successfully');
+    // Configure OpenAI client for OpenRouter or direct OpenAI
+    const clientConfig: any = {
+      apiKey: config.apiKey,
+    };
+    
+    if (config.provider === 'openrouter') {
+      clientConfig.baseURL = config.baseUrl || 'https://openrouter.ai/api/v1';
+      clientConfig.defaultHeaders = {
+        'HTTP-Referer': 'https://github.com/Simple96/AutoTaskAI',
+        'X-Title': 'AutoTaskAI'
+      };
+    } else if (config.baseUrl) {
+      clientConfig.baseURL = config.baseUrl;
+    }
+    
+    this.openai = new OpenAI(clientConfig);
+    
+    this.logger.info('LLM service initialized successfully', {
+      action: 'service_init_complete',
+      provider: config.provider,
+      baseUrl: clientConfig.baseURL || 'https://api.openai.com/v1'
+    });
   }
 
   async analyzeGitHubChanges(input: LLMAnalysisInput): Promise<LLMAnalysisResult> {
@@ -49,7 +68,7 @@ export class LLMService {
     
     try {
       const completion = await this.openai.chat.completions.create({
-        model: this.config.model || 'gpt-4o-mini',
+        model: this.config.model || 'openai/gpt-4o-mini',
         messages: [
           {
             role: 'system',
@@ -87,7 +106,8 @@ export class LLMService {
       parsed.metadata = {
         ...parsed.metadata,
         analysisDate: new Date().toISOString(),
-        model: this.config.model || 'gpt-4o-mini',
+        model: this.config.model || 'openai/gpt-4o-mini',
+        provider: this.config.provider,
         tokensUsed: completion.usage?.total_tokens
       };
 

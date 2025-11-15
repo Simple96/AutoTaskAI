@@ -12,7 +12,7 @@ export function loadConfig(): AppConfig {
   const requiredVars = [
     'GITHUB_WEBHOOK_SECRET',
     'LINEAR_API_KEY',
-    'OPENAI_API_KEY'
+    'AI_API_KEY'
   ];
 
   const missing = requiredVars.filter(varName => !process.env[varName]);
@@ -40,8 +40,10 @@ export function loadConfig(): AppConfig {
       defaultLabelIds: process.env.LINEAR_DEFAULT_LABEL_IDS?.split(',') || []
     },
     ai: {
-      openaiApiKey: process.env.OPENAI_API_KEY!,
-      model: process.env.OPENAI_MODEL || 'gpt-4o-mini'
+      provider: (process.env.AI_PROVIDER as 'openai' | 'openrouter') || 'openrouter',
+      apiKey: process.env.AI_API_KEY || process.env.OPENAI_API_KEY!, // Backward compatibility
+      model: process.env.AI_MODEL || process.env.OPENAI_MODEL || 'openai/gpt-4o-mini',
+      baseUrl: process.env.AI_BASE_URL
     },
     app: {
       environment: (process.env.NODE_ENV as 'development' | 'production') || 'development',
@@ -61,19 +63,19 @@ export function validateConfig(config: AppConfig): void {
     });
   }
 
-  if (config.ai.model?.includes('gpt-4') && !config.ai.openaiApiKey) {
-    logger.error('OpenAI API key is required for GPT-4 models', {
+  if (!config.ai.apiKey) {
+    logger.error('AI API key is required', {
       service: 'ConfigLoader',
       action: 'validation_failed',
-      model: config.ai.model
+      provider: config.ai.provider
     });
-    throw new Error('OpenAI API key is required for GPT-4 models');
+    throw new Error(`${config.ai.provider} API key is required`);
   }
 
   const configuredServices = [];
   if (config.github.webhookSecret) configuredServices.push('GitHub');
   if (config.linear.apiKey) configuredServices.push('Linear');
-  if (config.ai.openaiApiKey) configuredServices.push('OpenAI');
+  if (config.ai.apiKey) configuredServices.push(`AI-${config.ai.provider}`);
 
   logger.configLoaded(config.app.environment, configuredServices);
 }

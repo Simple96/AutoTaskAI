@@ -7,8 +7,10 @@ export interface AppConfig {
   };
   linear: LinearConfig;
   ai: {
-    openaiApiKey?: string;
+    provider: 'openai' | 'openrouter';
+    apiKey: string;
     model?: string;
+    baseUrl?: string;
   };
   app: {
     environment: 'development' | 'production';

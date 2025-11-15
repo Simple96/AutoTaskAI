@@ -16,9 +16,10 @@ export class TaskOrchestrator {
     this.config = config;
     
     this.llmService = new LLMService({
-      provider: 'openai',
-      model: config.ai.model || 'gpt-4o-mini',
-      apiKey: config.ai.openaiApiKey!,
+      provider: config.ai.provider || 'openrouter',
+      model: config.ai.model || 'openai/gpt-4o-mini',
+      apiKey: config.ai.apiKey,
+      baseUrl: config.ai.baseUrl,
       maxTokens: 2000,
       temperature: 0.3
     });
@@ -230,7 +231,7 @@ export class TaskOrchestrator {
     }
 
     // LLM doesn't have a simple health check, so we'll assume it's healthy if we have an API key
-    health.services.llm = this.config.ai.openaiApiKey ? 'healthy' : 'not_configured';
+    health.services.llm = this.config.ai.apiKey ? 'healthy' : 'not_configured';
 
     if (health.services.llm === 'not_configured') {
       health.status = 'degraded';

@@ -26,10 +26,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         defaultPriority: process.env.LINEAR_DEFAULT_PRIORITY || '3',
         apiKeyPrefix: process.env.LINEAR_API_KEY ? process.env.LINEAR_API_KEY.substring(0, 8) + '...' : null
       },
-      openai: {
-        apiKey: !!process.env.OPENAI_API_KEY,
-        model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-        apiKeyPrefix: process.env.OPENAI_API_KEY ? process.env.OPENAI_API_KEY.substring(0, 8) + '...' : null
+      ai: {
+        provider: process.env.AI_PROVIDER || 'openrouter',
+        apiKey: !!(process.env.AI_API_KEY || process.env.OPENAI_API_KEY),
+        model: process.env.AI_MODEL || process.env.OPENAI_MODEL || 'openai/gpt-4o-mini',
+        baseUrl: process.env.AI_BASE_URL || 'https://openrouter.ai/api/v1',
+        apiKeyPrefix: (process.env.AI_API_KEY || process.env.OPENAI_API_KEY) ? 
+          (process.env.AI_API_KEY || process.env.OPENAI_API_KEY)!.substring(0, 8) + '...' : null
       },
       app: {
         nodeEnv: process.env.NODE_ENV || 'development',
@@ -41,7 +44,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const requiredVars = [
       config.github.webhookSecret,
       config.linear.apiKey,
-      config.openai.apiKey
+      config.ai.apiKey
     ];
     
     const configuredCount = requiredVars.filter(Boolean).length;
@@ -72,8 +75,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       recommendations.push('Set LINEAR_TEAM_ID to specify which Linear team to use');
     }
     
-    if (!config.openai.apiKey) {
-      recommendations.push('Set OPENAI_API_KEY to enable AI-powered task analysis');
+    if (!config.ai.apiKey) {
+      recommendations.push('Set AI_API_KEY to enable AI-powered task analysis');
+    }
+
+    if (config.ai.provider === 'openrouter' && !config.ai.baseUrl) {
+      recommendations.push('Set AI_BASE_URL=https://openrouter.ai/api/v1 for OpenRouter');
     }
 
     const response = {
