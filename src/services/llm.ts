@@ -93,6 +93,9 @@ export class LLMService {
         throw new Error('No response from LLM');
       }
 
+      console.log(`📄 LLM RAW RESPONSE - Length: ${response.length}`);
+      console.log(`📄 LLM RESPONSE PREVIEW - ${response.substring(0, 200)}...`);
+
       this.logger.debug('Parsing LLM response', {
         action: 'response_parsing',
         responseLength: response.length,
@@ -100,8 +103,32 @@ export class LLMService {
         requestId
       });
 
-      const parsed = JSON.parse(response) as LLMAnalysisResult;
+      let parsed: LLMAnalysisResult;
+      try {
+        parsed = JSON.parse(response) as LLMAnalysisResult;
+        console.log(`✅ JSON PARSING SUCCESS - shouldCreateTasks: ${parsed.shouldCreateTasks}, suggestions: ${parsed.suggestions?.length || 0}`);
+      } catch (parseError) {
+        console.error(`🔴 JSON PARSING ERROR - ${parseError instanceof Error ? parseError.message : 'Unknown parse error'}`);
+        console.error(`🔴 Raw response that failed to parse: ${response}`);
+        throw new Error(`Failed to parse LLM JSON response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+      }
       
+      // Ensure required fields exist with defaults
+      if (!parsed.suggestions) {
+        console.log(`⚠️ MISSING SUGGESTIONS - Adding empty array`);
+        parsed.suggestions = [];
+      }
+      
+      if (typeof parsed.shouldCreateTasks === 'undefined') {
+        console.log(`⚠️ MISSING shouldCreateTasks - Defaulting to false`);
+        parsed.shouldCreateTasks = false;
+      }
+
+      if (!parsed.summary) {
+        console.log(`⚠️ MISSING SUMMARY - Adding default`);
+        parsed.summary = 'Analysis completed';
+      }
+
       // Add metadata
       parsed.metadata = {
         ...parsed.metadata,
@@ -111,9 +138,11 @@ export class LLMService {
         tokensUsed: completion.usage?.total_tokens
       };
 
+      console.log(`📊 FINAL PARSED RESULT - shouldCreateTasks: ${parsed.shouldCreateTasks}, suggestions: ${parsed.suggestions.length}, summary length: ${parsed.summary.length}`);
+
       this.logger.llmAnalysisCompleted(
         input.repository.full_name, 
-        parsed.suggestions.length, 
+        parsed.suggestions?.length || 0, 
         completion.usage?.total_tokens,
         requestId
       );
