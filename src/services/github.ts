@@ -245,11 +245,20 @@ export class GitHubWebhookService {
 
   // For Vercel serverless functions
   async handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    console.log(`🔧 WEBHOOK MIDDLEWARE - Starting @octokit/webhooks processing`);
+    
     const middleware = this.getMiddleware();
     return new Promise((resolve, reject) => {
+      console.log(`📦 WEBHOOK MIDDLEWARE - Calling middleware with request`);
+      
       middleware(req, res, (err: any) => {
-        if (err) reject(err);
-        else resolve();
+        if (err) {
+          console.error(`🔴 WEBHOOK MIDDLEWARE ERROR - ${err.message || err}`);
+          reject(err);
+        } else {
+          console.log(`✅ WEBHOOK MIDDLEWARE COMPLETED - No errors from @octokit/webhooks`);
+          resolve();
+        }
       });
     });
   }
