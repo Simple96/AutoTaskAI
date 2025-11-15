@@ -124,49 +124,49 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 </head>
 <body>
     <div class="header">
-        <h1>🤖 AutoTaskAI - Linear连接测试</h1>
-        <p>测试AutoTaskAI到Linear的连接和任务创建功能</p>
+        <h1>🤖 AutoTaskAI - Linear Connection Test</h1>
+        <p>Test AutoTaskAI connection to Linear and task creation functionality</p>
     </div>
 
     <div class="test-section">
-        <h2>📋 创建测试任务</h2>
+        <h2>📋 Create Test Task</h2>
         <form id="testForm">
             <div class="form-group">
-                <label for="title">任务标题 *</label>
-                <input type="text" id="title" name="title" value="AutoTaskAI测试任务" required>
+                <label for="title">Task Title *</label>
+                <input type="text" id="title" name="title" value="AutoTaskAI Test Task" required>
             </div>
             
             <div class="form-group">
-                <label for="description">任务描述</label>
-                <textarea id="description" name="description" placeholder="这是一个通过AutoTaskAI创建的测试任务...">这是通过AutoTaskAI创建的测试任务。
+                <label for="description">Task Description</label>
+                <textarea id="description" name="description" placeholder="This is a test task created via AutoTaskAI...">This is a test task created via AutoTaskAI.
 
-🎯 目标: 验证AutoTaskAI到Linear的连接
-📅 创建时间: ${new Date().toLocaleString()}
-🔧 工具: AutoTaskAI测试页面</textarea>
+🎯 Objective: Verify AutoTaskAI to Linear connection
+📅 Created: ${new Date().toLocaleString()}
+🔧 Tool: AutoTaskAI test page</textarea>
             </div>
             
             <div class="form-group">
-                <label for="priority">优先级</label>
+                <label for="priority">Priority</label>
                 <select id="priority" name="priority">
-                    <option value="4">低 (4)</option>
-                    <option value="3" selected>中 (3)</option>
-                    <option value="2">高 (2)</option>
-                    <option value="1">紧急 (1)</option>
+                    <option value="4">Low (4)</option>
+                    <option value="3" selected>Medium (3)</option>
+                    <option value="2">High (2)</option>
+                    <option value="1">Urgent (1)</option>
                 </select>
             </div>
             
-            <button type="submit">🚀 创建测试任务</button>
-            <button type="button" onclick="testConnection()">🔍 测试连接</button>
-            <button type="button" onclick="getTeams()">👥 获取团队信息</button>
+            <button type="submit">🚀 Create Test Task</button>
+            <button type="button" onclick="testConnection()">🔍 Test Connection</button>
+            <button type="button" onclick="getTeams()">👥 Get Team Info</button>
         </form>
         
         <div id="result"></div>
     </div>
 
     <div class="test-section">
-        <h2>🏥 服务状态</h2>
-        <button onclick="checkHealth()">检查健康状态</button>
-        <button onclick="checkConfig()">检查配置</button>
+        <h2>🏥 Service Status</h2>
+        <button onclick="checkHealth()">Check Health</button>
+        <button onclick="checkConfig()">Check Configuration</button>
         <div id="healthResult"></div>
     </div>
 
@@ -178,7 +178,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const formData = new FormData(e.target);
             const resultDiv = document.getElementById('result');
             
-            resultDiv.innerHTML = '<div class="info loading">正在创建任务...</div>';
+            resultDiv.innerHTML = '<div class="info loading">Creating task...</div>';
             
             try {
                 const response = await fetch('/api/test-linear', {
@@ -197,29 +197,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 const result = await response.json();
                 
                 if (response.ok && result.success) {
-                    resultDiv.innerHTML = \`<div class="success">✅ 任务创建成功！
+                    resultDiv.innerHTML = \`<div class="success">✅ Task created successfully!
                     
-任务ID: \${result.task.id}
-任务标识: \${result.task.identifier}
-任务URL: \${result.task.url}
+Task ID: \${result.task.id}
+Task Identifier: \${result.task.identifier}
+Task URL: \${result.task.url}
 
-完整响应:
+Full Response:
 \${JSON.stringify(result, null, 2)}</div>\`;
                 } else {
-                    resultDiv.innerHTML = \`<div class="error">❌ 创建失败: \${result.error || result.message}
+                    resultDiv.innerHTML = \`<div class="error">❌ Creation failed: \${result.error || result.message}
 
-详细信息:
+Details:
 \${JSON.stringify(result, null, 2)}</div>\`;
                 }
             } catch (error) {
-                resultDiv.innerHTML = \`<div class="error">❌ 请求失败: \${error.message}</div>\`;
+                resultDiv.innerHTML = \`<div class="error">❌ Request failed: \${error.message}</div>\`;
             }
         });
 
         // Test connection
         async function testConnection() {
             const resultDiv = document.getElementById('result');
-            resultDiv.innerHTML = '<div class="info loading">测试连接中...</div>';
+            resultDiv.innerHTML = '<div class="info loading">Testing connection...</div>';
             
             try {
                 const response = await fetch('/api/test-linear', {
@@ -233,23 +233,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 const result = await response.json();
                 
                 if (result.success) {
-                    resultDiv.innerHTML = \`<div class="success">✅ Linear连接正常！
+                    resultDiv.innerHTML = \`<div class="success">✅ Linear connection working!
                     
 \${JSON.stringify(result, null, 2)}</div>\`;
                 } else {
-                    resultDiv.innerHTML = \`<div class="error">❌ 连接失败: \${result.error}
+                    resultDiv.innerHTML = \`<div class="error">❌ Connection failed: \${result.error}
                     
 \${JSON.stringify(result, null, 2)}</div>\`;
                 }
             } catch (error) {
-                resultDiv.innerHTML = \`<div class="error">❌ 测试失败: \${error.message}</div>\`;
+                resultDiv.innerHTML = \`<div class="error">❌ Test failed: \${error.message}</div>\`;
             }
         }
 
         // Get teams info
         async function getTeams() {
             const resultDiv = document.getElementById('result');
-            resultDiv.innerHTML = '<div class="info loading">获取团队信息中...</div>';
+            resultDiv.innerHTML = '<div class="info loading">Getting team information...</div>';
             
             try {
                 const response = await fetch('/api/test-linear', {
@@ -263,54 +263,54 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 const result = await response.json();
                 
                 if (result.success) {
-                    resultDiv.innerHTML = \`<div class="info">📋 团队信息:
+                    resultDiv.innerHTML = \`<div class="info">📋 Team Information:
                     
 \${JSON.stringify(result.teams, null, 2)}
 
-💡 提示: 使用上面的UUID作为LINEAR_TEAM_ID</div>\`;
+💡 Tip: Use the UUID from above as your LINEAR_TEAM_ID</div>\`;
                 } else {
-                    resultDiv.innerHTML = \`<div class="error">❌ 获取失败: \${result.error}
+                    resultDiv.innerHTML = \`<div class="error">❌ Failed to get teams: \${result.error}
                     
 \${JSON.stringify(result, null, 2)}</div>\`;
                 }
             } catch (error) {
-                resultDiv.innerHTML = \`<div class="error">❌ 请求失败: \${error.message}</div>\`;
+                resultDiv.innerHTML = \`<div class="error">❌ Request failed: \${error.message}</div>\`;
             }
         }
 
         // Check health
         async function checkHealth() {
             const resultDiv = document.getElementById('healthResult');
-            resultDiv.innerHTML = '<div class="info loading">检查健康状态中...</div>';
+            resultDiv.innerHTML = '<div class="info loading">Checking health...</div>';
             
             try {
                 const response = await fetch('/api/health');
                 const result = await response.json();
                 
                 const statusClass = result.status === 'healthy' ? 'success' : 'error';
-                resultDiv.innerHTML = \`<div class="\${statusClass}">健康状态: \${result.status}
+                resultDiv.innerHTML = \`<div class="\${statusClass}">Health Status: \${result.status}
                 
 \${JSON.stringify(result, null, 2)}</div>\`;
             } catch (error) {
-                resultDiv.innerHTML = \`<div class="error">❌ 健康检查失败: \${error.message}</div>\`;
+                resultDiv.innerHTML = \`<div class="error">❌ Health check failed: \${error.message}</div>\`;
             }
         }
 
         // Check config
         async function checkConfig() {
             const resultDiv = document.getElementById('healthResult');
-            resultDiv.innerHTML = '<div class="info loading">检查配置中...</div>';
+            resultDiv.innerHTML = '<div class="info loading">Checking configuration...</div>';
             
             try {
                 const response = await fetch('/api/config');
                 const result = await response.json();
                 
                 const statusClass = result.configurationScore === 100 ? 'success' : 'error';
-                resultDiv.innerHTML = \`<div class="\${statusClass}">配置状态: \${result.status} (\${result.configurationScore}%)
+                resultDiv.innerHTML = \`<div class="\${statusClass}">Configuration Status: \${result.status} (\${result.configurationScore}%)
                 
 \${JSON.stringify(result, null, 2)}</div>\`;
             } catch (error) {
-                resultDiv.innerHTML = \`<div class="error">❌ 配置检查失败: \${error.message}</div>\`;
+                resultDiv.innerHTML = \`<div class="error">❌ Configuration check failed: \${error.message}</div>\`;
             }
         }
     </script>
@@ -343,7 +343,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             await linearService.getTasksByRepository('test', 1);
             return res.status(200).json({
               success: true,
-              message: 'Linear连接正常',
+              message: 'Linear connection working',
               timestamp: new Date().toISOString()
             });
           } catch (error) {
@@ -353,7 +353,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             
             return res.status(400).json({
               success: false,
-              error: 'Linear连接失败',
+              error: 'Linear connection failed',
               details: error instanceof Error ? error.message : 'Unknown error',
               timestamp: new Date().toISOString()
             });
@@ -382,7 +382,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(200).json({
               success: true,
               teams,
-              message: `找到 ${teams.length} 个团队`,
+              message: `Found ${teams.length} teams`,
               timestamp: new Date().toISOString()
             });
           } catch (error) {
@@ -392,7 +392,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             
             return res.status(400).json({
               success: false,
-              error: '获取团队信息失败',
+              error: 'Failed to get team information',
               details: error instanceof Error ? error.message : 'Unknown error',
               timestamp: new Date().toISOString()
             });
@@ -403,14 +403,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           if (!title) {
             return res.status(400).json({
               success: false,
-              error: '任务标题是必需的'
+              error: 'Task title is required'
             });
           }
 
           try {
             const task = await linearService.createTask({
-              title: title || 'AutoTaskAI测试任务',
-              description: description || '这是通过AutoTaskAI创建的测试任务',
+              title: title || 'AutoTaskAI Test Task',
+              description: description || 'This is a test task created via AutoTaskAI',
               teamId: config.linear.teamId!,
               priority: priority || 3
             });
@@ -423,7 +423,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             return res.status(200).json({
               success: true,
-              message: '任务创建成功！',
+              message: 'Task created successfully!',
               task: {
                 id: task.id,
                 identifier: task.identifier,
@@ -442,7 +442,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             
             return res.status(400).json({
               success: false,
-              error: '任务创建失败',
+              error: 'Task creation failed',
               details: error instanceof Error ? error.message : 'Unknown error',
               timestamp: new Date().toISOString()
             });
@@ -451,7 +451,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         default:
           return res.status(400).json({
             success: false,
-            error: '未知的测试动作'
+            error: 'Unknown test action'
           });
       }
     } catch (configError) {
@@ -461,7 +461,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       
       return res.status(500).json({
         success: false,
-        error: '配置错误',
+        error: 'Configuration error',
         details: configError instanceof Error ? configError.message : 'Unknown error',
         timestamp: new Date().toISOString()
       });

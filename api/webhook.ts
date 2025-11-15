@@ -34,6 +34,10 @@ function initializeServices() {
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   const requestId = `webhook_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
   
+  // Add simple console logs that are definitely visible in Vercel
+  console.log(`🚀 WEBHOOK START - ${requestId}`);
+  console.log(`📨 Method: ${req.method}, Event: ${req.headers['x-github-event']}, HasSignature: ${!!req.headers['x-hub-signature-256']}`);
+  
   logger.info('Webhook request received', {
     service: 'WebhookAPI',
     action: 'request_received',
@@ -46,6 +50,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   
   // Only accept POST requests
   if (req.method !== 'POST') {
+    console.log(`❌ WEBHOOK ERROR - Wrong method: ${req.method}`);
     logger.warn('Invalid method for webhook', {
       service: 'WebhookAPI',
       action: 'method_not_allowed',
@@ -58,6 +63,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
 
   // Check for required headers
   if (!req.headers['x-github-event']) {
+    console.log(`❌ WEBHOOK ERROR - Missing GitHub event header`);
     logger.warn('Missing GitHub event header', {
       service: 'WebhookAPI',
       action: 'missing_header',
@@ -68,6 +74,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   }
 
   if (!req.headers['x-hub-signature-256']) {
+    console.log(`❌ WEBHOOK ERROR - Missing GitHub signature header`);
     logger.warn('Missing GitHub signature header', {
       service: 'WebhookAPI',
       action: 'missing_signature',
@@ -78,8 +85,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   }
 
   try {
+    console.log(`🔧 WEBHOOK INIT - Starting service initialization`);
+    
     // Initialize services if needed
     initializeServices();
+    
+    console.log(`✅ WEBHOOK SERVICES READY - Processing ${req.headers['x-github-event']} event`);
 
     logger.debug('Processing webhook request', {
       service: 'WebhookAPI',
@@ -93,6 +104,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     
     // If we get here, the webhook was processed successfully
     if (!res.headersSent) {
+      console.log(`✅ WEBHOOK SUCCESS - ${req.headers['x-github-event']} processed successfully`);
       logger.info('Webhook processed successfully', {
         service: 'WebhookAPI',
         action: 'webhook_success',
@@ -102,6 +114,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       res.status(200).json({ success: true });
     }
   } catch (error) {
+    console.error(`🔴 WEBHOOK ERROR - ${error instanceof Error ? error.message : 'Unknown error'}`);
+    console.error(`🔴 Request ID: ${requestId}`);
+    if (error instanceof Error && error.stack) {
+      console.error(`🔴 Stack: ${error.stack}`);
+    }
+    
     logger.error('Webhook handler error', {
       service: 'WebhookAPI',
       action: 'webhook_error',

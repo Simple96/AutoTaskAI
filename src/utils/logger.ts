@@ -48,22 +48,27 @@ export class Logger {
     const timestamp = new Date().toISOString();
     const service = context?.service || this.serviceName;
     
-    const logObject = {
-      timestamp,
-      level,
-      service,
-      message,
-      ...(context && { context }),
-      ...(error && { 
-        error: {
-          name: error.name,
-          message: error.message,
-          stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-        }
-      })
-    };
+    // For Vercel, use a more readable format instead of JSON
+    let logLine = `[${timestamp}] ${level} ${service}: ${message}`;
+    
+    if (context && Object.keys(context).length > 0) {
+      const contextStr = Object.entries(context)
+        .filter(([key]) => key !== 'service') // Already included above
+        .map(([key, value]) => `${key}=${JSON.stringify(value)}`)
+        .join(' ');
+      if (contextStr) {
+        logLine += ` | ${contextStr}`;
+      }
+    }
+    
+    if (error) {
+      logLine += ` | ERROR: ${error.name}: ${error.message}`;
+      if (process.env.NODE_ENV === 'development' && error.stack) {
+        logLine += `\nStack: ${error.stack}`;
+      }
+    }
 
-    return JSON.stringify(logObject);
+    return logLine;
   }
 
   private shouldLog(level: LogLevel): boolean {
@@ -91,6 +96,25 @@ export class Logger {
   error(message: string, context?: LogContext, error?: Error): void {
     if (this.shouldLog(LogLevel.ERROR)) {
       console.error(this.formatLog('ERROR', message, context, error));
+    }
+  }
+
+  // Add simple console methods for immediate visibility
+  simpleInfo(message: string): void {
+    console.log(`🔵 ${message}`);
+  }
+
+  simpleWarn(message: string): void {
+    console.warn(`🟡 WARNING: ${message}`);
+  }
+
+  simpleError(message: string, error?: Error): void {
+    console.error(`🔴 ERROR: ${message}`);
+    if (error) {
+      console.error(`🔴 Details: ${error.message}`);
+      if (error.stack) {
+        console.error(`🔴 Stack: ${error.stack}`);
+      }
     }
   }
 

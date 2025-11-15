@@ -78,6 +78,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             opacity: 0.7;
             font-size: 0.9rem;
         }
+        .nav-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin: 2rem 0;
+        }
+        .nav-button {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        .nav-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+        .nav-button.primary {
+            background: #ffd700;
+            color: #333;
+            font-weight: 600;
+        }
+        .nav-button.primary:hover {
+            background: #ffed4a;
+            color: #333;
+        }
     </style>
 </head>
 <body>
@@ -93,6 +124,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             Your AutoTaskAI instance is deployed and ready to receive GitHub webhooks.
         </div>
 
+        <div class="nav-buttons">
+            <a href="/api/test-linear" class="nav-button primary">🧪 Test Linear Integration</a>
+            <a href="/api/config" class="nav-button">⚙️ Check Configuration</a>
+            <a href="/api/health" class="nav-button">🏥 Health Status</a>
+        </div>
+
         <div class="endpoints">
             <h3>📡 Available Endpoints</h3>
             <div class="endpoint">
@@ -106,6 +143,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             <div class="endpoint">
                 <span class="endpoint-label">Linear Test:</span> 
                 <a href="/api/test-linear" target="_blank">GET /api/test-linear</a>
+            </div>
+            <div class="endpoint">
+                <span class="endpoint-label">Debug Logs:</span> 
+                <a href="/api/debug" target="_blank">GET /api/debug</a>
             </div>
             <div class="endpoint">
                 <span class="endpoint-label">GitHub Webhook:</span> 
