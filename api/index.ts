@@ -100,12 +100,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 <a href="/api/health" target="_blank">GET /api/health</a>
             </div>
             <div class="endpoint">
-                <span class="endpoint-label">GitHub Webhook:</span> 
-                POST /api/webhook
-            </div>
-            <div class="endpoint">
                 <span class="endpoint-label">Configuration Check:</span> 
                 <a href="/api/config" target="_blank">GET /api/config</a>
+            </div>
+            <div class="endpoint">
+                <span class="endpoint-label">Linear Test:</span> 
+                <a href="/api/test-linear" target="_blank">GET /api/test-linear</a>
+            </div>
+            <div class="endpoint">
+                <span class="endpoint-label">GitHub Webhook:</span> 
+                POST /api/webhook
             </div>
         </div>
 
