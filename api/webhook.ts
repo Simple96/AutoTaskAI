@@ -91,53 +91,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     // Handle the webhook using GitHub webhook service
     await webhookService.handleRequest(req as any, res as any);
     
-    // ADDITIONAL: Direct event processing to bypass @octokit/webhooks event system
-    try {
-      const eventType = req.headers['x-github-event'] as string;
-      
-      if (eventType === 'push' || eventType === 'pull_request') {
-        // Get the raw body
-        let body = '';
-        if (typeof req.body === 'string') {
-          body = req.body;
-        } else if (typeof req.body === 'object') {
-          body = JSON.stringify(req.body);
-        }
-        
-        const payload = typeof req.body === 'object' ? req.body : JSON.parse(body);
-        
-        logger.debug('Direct processing GitHub event', {
-          service: 'WebhookAPI',
-          action: 'direct_processing',
-          repository: payload.repository?.full_name,
-          eventType,
-          requestId
-        });
-        
-        // Directly call orchestrator
-        await orchestrator.processGitHubEvent({
-          repository: payload.repository,
-          commits: payload.commits || [],
-          pull_request: payload.pull_request,
-          sender: payload.sender,
-          action: payload.action
-        });
-      } else {
-        logger.debug('Unsupported event type for direct processing', {
-          service: 'WebhookAPI',
-          action: 'unsupported_event',
-          eventType,
-          requestId
-        });
-      }
-    } catch (directError) {
-      logger.error('Direct processing error', {
-        service: 'WebhookAPI',
-        action: 'direct_processing_error',
-        requestId
-      }, directError as Error);
-    }
-    
     // If we get here, the webhook was processed successfully
     if (!res.headersSent) {
       logger.info('Webhook processed successfully', {

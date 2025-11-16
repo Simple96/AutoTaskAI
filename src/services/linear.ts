@@ -120,7 +120,10 @@ export class LinearService {
       
       return await this.mapLinearIssue(issue);
     } catch (error) {
-      console.error('Error updating Linear task:', error);
+      this.logger.error('Failed to update Linear task', {
+        action: 'task_update_failed',
+        taskId
+      }, error as Error);
       throw new Error(`Failed to update Linear task: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -157,7 +160,11 @@ export class LinearService {
 
       return taskSummaries;
     } catch (error) {
-      console.error('Error fetching Linear tasks:', error);
+      this.logger.error('Failed to fetch Linear tasks', {
+        action: 'tasks_fetch_failed',
+        repository: repositoryName,
+        limit
+      }, error as Error);
       return [];
     }
   }
@@ -391,7 +398,10 @@ export class LinearService {
         }
       }
     } catch (error) {
-      console.warn('Error handling labels:', error);
+      this.logger.warn('Error handling labels', {
+        action: 'labels_handling_failed',
+        labelNames
+      }, error as Error);
     }
     
     return labelIds;

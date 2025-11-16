@@ -1,5 +1,4 @@
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { Webhooks, createNodeMiddleware } = require('@octokit/webhooks');
+import { Webhooks, createNodeMiddleware } from '@octokit/webhooks';
 import { IncomingMessage, ServerResponse } from 'http';
 import {
   GitHubWebhookPayload,

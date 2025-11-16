@@ -10,8 +10,9 @@
     "start": "node dist/src/index.js",
     "vercel:dev": "vercel dev",
     "type-check": "tsc --noEmit",
-    "lint": "echo \"Add ESLint later\"",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "lint": "eslint src api --ext .ts",
+    "lint:fix": "eslint src api --ext .ts --fix",
+    "test": "echo \"No tests specified yet\""
   },
   "repository": {
     "type": "git",
@@ -37,7 +38,10 @@
   "devDependencies": {
     "@types/micro": "^7.3.7",
     "@types/node": "^24.10.1",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
     "@vercel/node": "^5.5.6",
+    "eslint": "^8.0.0",
     "typescript": "^5.9.3",
     "vercel": "^32.5.0"
   }
